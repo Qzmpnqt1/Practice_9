@@ -34,12 +34,19 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TEXT_VIEW_STATE = "text_view_state";
     private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        if (savedInstanceState != null) {
+            String textViewState = savedInstanceState.getString(TEXT_VIEW_STATE);
+            TextView textView = findViewById(R.id.textFile);
+            textView.setText(textViewState);
+        }
 
         if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -62,21 +69,17 @@ public class MainActivity extends AppCompatActivity {
                 File file = new File(storageDir, fileName + ".txt");
 
                 try {
-                    if (!file.exists()){
-                        boolean created = file.createNewFile();
-                        if (created){
-                            FileWriter writer = new FileWriter(file);
-                            writer.append(fileText);
-                            writer.flush();
-                            writer.close();
-                        }
-                    }
+                    FileWriter writer = new FileWriter(file, true); // Открываем файл в режиме дозаписи
+                    writer.append(" " + fileText);
+                    writer.flush();
+                    writer.close();
                 }
                 catch (IOException e){
                     e.printStackTrace();
                 }
             }
         });
+
 
         Button buttonRead = findViewById(R.id.buttonRead);
         buttonRead.setOnClickListener(new View.OnClickListener() {
@@ -156,6 +159,8 @@ public class MainActivity extends AppCompatActivity {
                             boolean deleted = file.delete();
                             if (deleted){
                                 Toast.makeText(MainActivity.this, "File deleted", Toast.LENGTH_LONG).show();
+                                TextView textView = findViewById(R.id.textFile);
+                                textView.setText("");
                             }
                             else {
                                 Toast.makeText(MainActivity.this, "File not deleted", Toast.LENGTH_LONG).show();
@@ -173,12 +178,15 @@ public class MainActivity extends AppCompatActivity {
                 builder.show();
             }
         });
+
     }
 
     @Override
     protected void onSaveInstanceState (Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putString("KEY_STATE", "some state");
+        TextView textView = findViewById(R.id.textFile);
+        outState.putString(TEXT_VIEW_STATE, textView.getText().toString());
     }
 
     @Override
