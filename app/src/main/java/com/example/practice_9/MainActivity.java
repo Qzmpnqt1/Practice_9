@@ -2,196 +2,220 @@ package com.example.practice_9;
 
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
+
+import com.google.android.material.textfield.TextInputEditText;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.OpenOption;
-import android.Manifest;
-import android.content.pm.PackageManager;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String TEXT_VIEW_STATE = "text_view_state";
-    private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1;
+    //используется для сохранения и восстановления имени файла
+    private static final String FILENAME_KEY = "filename";
+
+    //используется для сохранения и восстановления содержимого файла
+    private static final String FILECONTENT_KEY = "filecontent";
+
+    //используется для сохранения и восстановления текста поля fileContentField
+    private static final String FILECONTENTFIELD_KEY = "filecontentfield";
+
+    private TextInputEditText fileName;
+    private TextInputEditText fileContent;
+    private TextView fileContentField;
+
+    private String filename;
+    private String fileContents;
+    private String fileContentFieldText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        fileName = findViewById(R.id.fileName);
+        fileContent = findViewById(R.id.fileContent);
+        fileContentField = findViewById(R.id.fileContentField);
+
+        Button saveButton = findViewById(R.id.saveButton);
+        Button readButton = findViewById(R.id.readButton);
+        Button deleteButton = findViewById(R.id.deleteButton);
+        Button putButton = findViewById(R.id.addButton);
+
+        // Восстановление состояния приложения, если оно было сохранено
         if (savedInstanceState != null) {
-            String textViewState = savedInstanceState.getString(TEXT_VIEW_STATE);
-            TextView textView = findViewById(R.id.textFile);
-            textView.setText(textViewState);
+            filename = savedInstanceState.getString(FILENAME_KEY);
+            fileContents = savedInstanceState.getString(FILECONTENT_KEY);
+            fileContentFieldText = savedInstanceState.getString(FILECONTENTFIELD_KEY);
+
+            fileName.setText(filename);
+            fileContent.setText(fileContents);
+            fileContentField.setText(fileContentFieldText);
         }
 
-        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
-            // Permission is not granted
-            ActivityCompat.requestPermissions(MainActivity.this,
-                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                    MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
-        }
-
-        Button buttonAdd = findViewById(R.id.buttonAdd);
-        buttonAdd.setOnClickListener(new View.OnClickListener() {
+        saveButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                EditText editText = findViewById(R.id.fileText);
-                String fileText = editText.getText().toString();
-                EditText editName = findViewById(R.id.fileName);
-                String fileName = editName.getText().toString();
-
-                File storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-                File file = new File(storageDir, fileName + ".txt");
-
-                try {
-                    FileWriter writer = new FileWriter(file, true); // Открываем файл в режиме дозаписи
-                    writer.append(" " + fileText);
-                    writer.flush();
-                    writer.close();
+            public void onClick(View view) {
+                if (fileName.getText().toString().matches("") && fileContent.getText().toString().matches("")) {
+                    Toast.makeText(getApplicationContext(), "Оба поля пустые", Toast.LENGTH_SHORT).show();
+                    return;
                 }
-                catch (IOException e){
+                if (fileName.getText().toString().matches("")) {
+                    Toast.makeText(getApplicationContext(), "Введите название файла", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (fileContent.getText().toString().matches("")) {
+                    Toast.makeText(getApplicationContext(), "Введите содержимое файла", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+
+                String filename = fileName.getText().toString(); // Название файла
+                String fileContents = fileContent.getText().toString(); // Текст внутри файла
+
+                // Получение контекста активности
+                Context context = getApplicationContext();
+
+                // Открываем поток для записи. Если документ не создан, то он будет создан автоматически
+                try (FileOutputStream fos = context.openFileOutput(filename, Context.MODE_PRIVATE)) {
+                    // Записываем текст в файл, переведя его в массив байт
+                    fos.write(fileContents.getBytes());
+                } catch (IOException e) {
                     e.printStackTrace();
                 }
+                Toast.makeText(getApplicationContext(), "Сохранено", Toast.LENGTH_SHORT).show();
             }
         });
 
 
-        Button buttonRead = findViewById(R.id.buttonRead);
-        buttonRead.setOnClickListener(new View.OnClickListener() {
+        readButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                EditText editName = findViewById(R.id.fileName);
-                String fileName = editName.getText().toString();
+                String filename = fileName.getText().toString(); // Получаем имя файла из текстового поля
 
-                File storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-                File file = new File(storageDir, fileName + ".txt");
-                // чтение файла
-                if (file.exists()){
+                if (filename.isEmpty()) {
+                    Toast.makeText(getApplicationContext(), "Имя файла пустое", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                File file = new File(getFilesDir(), filename); // Используем getFilesDir() для получения каталога файлов приложения
+
+                if (file.exists()) {
                     StringBuilder text = new StringBuilder();
                     try {
                         BufferedReader br = new BufferedReader(new FileReader(file));
                         String line;
-
-                        while ((line = br.readLine()) != null){
+                        while ((line = br.readLine()) != null) {
                             text.append(line);
                             text.append('\n');
                         }
-                        TextView textView = findViewById(R.id.textFile);
-                        textView.setText(text.toString());
                         br.close();
-                    }
-                    catch (IOException e){
+                    } catch (IOException e) {
                         e.printStackTrace();
                     }
+                    String fileData = text.toString();
+
+                    fileContentField.setText(fileData);
+
+                    Toast.makeText(getApplicationContext(), "Прочитано", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(getApplicationContext(), "Файла не существует", Toast.LENGTH_SHORT).show();
                 }
             }
         });
 
-        Button buttonSafe = findViewById(R.id.buttonSafe);
-        buttonSafe.setOnClickListener(new View.OnClickListener() {
+        deleteButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                EditText editName = findViewById(R.id.fileName);
-                String fileName = editName.getText().toString();
+                String filename = fileName.getText().toString(); // Получаем имя файла из текстового поля
 
-                File storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-                File file = new File(storageDir, fileName + ".txt");
-
-                EditText editText = findViewById(R.id.fileText);
-                String fileText = editText.getText().toString();
-                FileOutputStream outputStream;
-                try {
-                    outputStream = openFileOutput(fileName, Context.MODE_PRIVATE);
-                    outputStream.write(fileText.getBytes());
-                    outputStream.close();
+                if (filename.isEmpty()) {
+                    Toast.makeText(getApplicationContext(), "Имя файла пустое", Toast.LENGTH_SHORT).show();
+                    return;
                 }
-                catch (Exception e){
-                    e.printStackTrace();
-                }
-                Toast.makeText(MainActivity.this, "Fale is safed", Toast.LENGTH_LONG).show();
-            }
-        });
-
-        Button buttonDel = findViewById(R.id.buttonDel);
-        buttonDel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                EditText editName = findViewById(R.id.fileName);
-                String fileName = editName.getText().toString();
-
-                File storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-                File file = new File(storageDir, fileName + ".txt");
 
                 AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                builder.setTitle("Подтверждение");
-                builder.setMessage("Вы уверены, что хотите удалить файл " + fileName);
-
+                builder.setMessage("Вы уверены, что хотите удалить файл '" + filename + "'?");
                 builder.setPositiveButton("Да", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        // удаление файла
-                        if (file.exists()){
-                            boolean deleted = file.delete();
-                            if (deleted){
-                                Toast.makeText(MainActivity.this, "File deleted", Toast.LENGTH_LONG).show();
-                                TextView textView = findViewById(R.id.textFile);
-                                textView.setText("");
+                        File file = new File(getFilesDir(), filename); // Получаем файл по имени
+
+                        if (file.exists()) {
+                            if (file.delete()) { // Удаляем файл
+                                Toast.makeText(getApplicationContext(), "Файл '" + filename + "' удален", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(getApplicationContext(), "Ошибка удаления файла", Toast.LENGTH_SHORT).show();
                             }
-                            else {
-                                Toast.makeText(MainActivity.this, "File not deleted", Toast.LENGTH_LONG).show();
-                            }
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Файла не существует", Toast.LENGTH_SHORT).show();
                         }
                     }
                 });
-
-                builder.setNegativeButton("Отмена", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                    }
-                });
+                builder.setNegativeButton("Нет", null);
                 builder.show();
             }
         });
 
+        putButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String filename = fileName.getText().toString(); // Получаем имя файла из текстового поля
+                String fileContents = fileContent.getText().toString(); // Получаем содержимое для добавления
+
+                if (filename.isEmpty()) {
+                    Toast.makeText(getApplicationContext(), "Имя файла пустое", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (fileContents.isEmpty()) {
+                    Toast.makeText(getApplicationContext(), "Содержимое файла пустое", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // Получение контекста активности
+                Context context = getApplicationContext();
+
+                // Открываем поток для записи. Если документ не создан, то он будет создан автоматически
+                try (FileOutputStream fos = context.openFileOutput(filename, Context.MODE_APPEND)) {
+                    // Записываем текст в файл, переведя его в массив байт
+                    fos.write(fileContents.getBytes());
+                    fos.write("\n".getBytes()); // Добавляем новую строку после добавляемого содержимого
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                Toast.makeText(getApplicationContext(), "Информация добавлена в файл", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
-    protected void onSaveInstanceState (Bundle outState) {
+    protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putString("KEY_STATE", "some state");
-        TextView textView = findViewById(R.id.textFile);
-        outState.putString(TEXT_VIEW_STATE, textView.getText().toString());
+        // Сохранение состояния
+        filename = fileName.getText().toString();
+        fileContents = fileContent.getText().toString();
+        fileContentFieldText = fileContentField.getText().toString();
+        outState.putString(FILENAME_KEY, filename);
+        outState.putString(FILECONTENT_KEY, fileContents);
+        outState.putString(FILECONTENTFIELD_KEY, fileContentFieldText);
     }
 
     @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState){
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        String state = savedInstanceState.getString("KEY_STATE");
+        // Восстановление состояния
+        filename = savedInstanceState.getString(FILENAME_KEY);
+        fileContents = savedInstanceState.getString(FILECONTENT_KEY);
     }
 }
